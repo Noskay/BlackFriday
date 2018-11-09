@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Nov  8 13:46:00 2018
+
+@author: noskay
+"""
+
+import numpy as np
+import pandas as pd
+
+# Importing Data
+df = pd.read_csv("BlackFriday.csv")
+
+# Data Preprocessing
+demog = df.groupby(by=["User_ID",
+                            "Age",
+                            "Gender",
+                            "Occupation",
+                            "Marital_Status",
+                            "City_Category",
+                            "Stay_In_Current_City_Years"
+                           ]).sum()["Purchase"].to_frame()
+
+demog = demog.reset_index()
+
+# Creating dummie variables and concatenate
+age_dummies = pd.get_dummies(demog["Age"])
+occupation_dummies = pd.get_dummies(demog["Occupation"])
+city_dummies = pd.get_dummies(demog["City_Category"])
+city_stay_years_dummies = pd.get_dummies(demog["Stay_In_Current_City_Years"])
+city_stay_years_dummies.columns = ["0yrs","1yrs","2yrs","3yrs","4+yrs"]
+demog["Gender"] = demog["Gender"].apply(lambda gender: 1 if gender =="F" else 0)
+demog_data = pd.concat([demog["Gender"],
+                        demog["Marital_Status"],
+                        age_dummies,
+                        occupation_dummies,
+                        city_dummies,
+                        city_stay_years_dummies,
+                        demog["Purchase"]
+                       ],axis=1)
+
+# Avoid dummie variable trap
+demog_data = demog_data.drop(["0-17",0,"C","4+yrs"],axis=1)
+
+# Test Train Split
+from sklearn.model_selection import train_test_split
+X = demog_data.iloc[:,:-1]
+y = demog_data.iloc[:,-1]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=42)
+
+# Feature Scaling
+from sklearn.preprocessing import MinMaxScaler
+sc = MinMaxScaler(feature_range=(0,1))
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+
+sc2 = MinMaxScaler(feature_range=(0,1))
+y_train = sc2.fit_transform(y_train)
+y_test = sc2.transform(y_test)
+
+# Import required packages
+import keras
+from keras.models import Sequential
+from keras.layers import Dense
+
+# create the ANN and add layers
+ann = Sequential()
+ann.add(Dense(output_dim = 15, 
+              init = "uniform",
+              activation = "relu",
+              input_dim = 34))
+ann.add(Dense(output_dim = 15, 
+              init = "uniform",
+              activation = "relu",
+              input_dim = 34))
+ann.add(Dense(output_dim = 15, 
+              init = "uniform",
+              activation = "relu",
+              input_dim = 34))
+ann.add(Dense(output_dim = 15, 
+              init = "uniform",
+              activation = "relu",
+              input_dim = 34))
+ann.add(Dense(output_dim = 1, 
+              init = "uniform",
+              activation = "relu",
+              input_dim = 34))
+ann.compile(optimizer = "adam", loss = "mean_absolute_percentage_error",metrics=["accuracy"])
+
+
+# fit!
+ann.fit(X_train, y_train, batch_size = 10, nb_epoch = 100)
+
+# so long as I see the
